@@ -80,6 +80,35 @@ function buildExportText(optIdx, state) {
 let customRoleCounter = 1000;
 let customOptCounter = 10;
 
+// ── POOL ZONE — separate component to avoid useState-in-map ──
+function PoolZone({ pool, poolRoles, state, isRedundant, onDrop, onDragStart, onDragEnd, onEdit, onCycleType, onToggleNotes, onSaveNotes, onMarkRedundant, onUnmarkRedundant, onReset, filter }) {
+  const [dragOver, setDragOver] = useState(false);
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: pool.bg, borderRadius: '4px 4px 0 0', padding: '4px 8px', fontFamily: 'Oswald', fontSize: 9, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 600, color: 'white' }}>{pool.label}</div>
+      <div
+        style={{ flex: 1, border: `1px dashed ${dragOver ? '#93c5fd' : '#d1d5db'}`, borderTop: 'none', borderRadius: '0 0 5px 5px', padding: 5, minHeight: 52, maxHeight: 120, overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: 4, alignContent: 'flex-start', background: dragOver ? (pool.isDanger ? '#fef2f2' : '#dbeafe') : pool.poolBg, transition: 'background .15s' }}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { setDragOver(false); onDrop(e, pool.id); }}
+      >
+        {poolRoles.length === 0
+          ? <span style={{ fontSize: 8.5, color: pool.hintColor, padding: 4 }}>{pool.hint}</span>
+          : poolRoles.map(r => (
+              <div key={r.id} style={{ minWidth: 140, maxWidth: 180 }}>
+                <RoleTile role={r} teamId={pool.id} edits={state.roleEdits[r.id]} isRedundant={isRedundant(r.id)}
+                  onDragStart={onDragStart} onDragEnd={onDragEnd}
+                  onEdit={onEdit} onCycleType={onCycleType} onToggleNotes={onToggleNotes}
+                  onSaveNotes={onSaveNotes} onMarkRedundant={onMarkRedundant}
+                  onUnmarkRedundant={onUnmarkRedundant} onReset={onReset} filter={filter} />
+              </div>
+            ))
+        }
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const { state, update, syncStatus, loaded } = useCloudState(INITIAL_STATE);
   const [showNewOptModal, setShowNewOptModal] = useState(false);
@@ -486,33 +515,14 @@ export default function App() {
           <div style={{ background: '#f8fafc', borderTop: '1px solid #e5e7eb', padding: '8px 18px', display: 'flex', gap: 10 }}>
             {[{ id: 'unassigned', label: '📥 Unassigned / Holding', bg: '#374151', poolBg: 'white', hint: 'Drop roles here to park temporarily', hintColor: '#9ca3af', isDanger: false },
               { id: 'redundancy', label: '🗑 Redundancy', bg: '#991b1b', poolBg: '#fff5f5', hint: 'Drag roles here to flag for redundancy', hintColor: '#fca5a5', isDanger: true }].map(pool => {
-              const [poolDragOver, setPoolDragOver] = React.useState(false);
               const poolIds = curTeamState[pool.id] || [];
               const poolRoles = poolIds.map(id => getRole(id)).filter(Boolean);
               return (
-                <div key={pool.id} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ background: pool.bg, borderRadius: '4px 4px 0 0', padding: '4px 8px', fontFamily: 'Oswald', fontSize: 9, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 600, color: 'white' }}>{pool.label}</div>
-                  <div
-                    style={{ flex: 1, border: `1px dashed ${poolDragOver ? '#93c5fd' : '#d1d5db'}`, borderTop: 'none', borderRadius: '0 0 5px 5px', padding: 5, minHeight: 52, maxHeight: 120, overflowY: 'auto', display: 'flex', flexWrap: 'wrap', gap: 4, alignContent: 'flex-start', background: poolDragOver ? (pool.isDanger ? '#fef2f2' : '#dbeafe') : pool.poolBg, transition: 'background .15s' }}
-                    onDragOver={(e) => { e.preventDefault(); setPoolDragOver(true); }}
-                    onDragLeave={() => setPoolDragOver(false)}
-                    onDrop={(e) => { setPoolDragOver(false); onDrop(e, pool.id); }}
-                  >
-                    {poolRoles.length === 0
-                      ? <span style={{ fontSize: 8.5, color: pool.hintColor, padding: 4 }}>{pool.hint}</span>
-                      : poolRoles.map(r => (
-                          <div key={r.id} style={{ minWidth: 140, maxWidth: 180 }}>
-                            <RoleTile role={r} teamId={pool.id} edits={state.roleEdits[r.id]} isRedundant={isRedundant(r.id)}
-                              onDragStart={onDragStart} onDragEnd={onDragEnd}
-                              onEdit={onEdit} onCycleType={onCycleType} onToggleNotes={onToggleNotes}
-                              onSaveNotes={onSaveNotes} onMarkRedundant={onMarkRedundant}
-                              onUnmarkRedundant={onUnmarkRedundant} onReset={onReset} filter={filter} />
-                          </div>
-                        ))
-                    }
-                  </div>
-                </div>
-              );
+                <PoolZone key={pool.id} pool={pool} poolRoles={poolRoles} state={state} isRedundant={isRedundant}
+                  onDrop={onDrop} onDragStart={onDragStart} onDragEnd={onDragEnd}
+                  onEdit={onEdit} onCycleType={onCycleType} onToggleNotes={onToggleNotes}
+                  onSaveNotes={onSaveNotes} onMarkRedundant={onMarkRedundant}
+                  onUnmarkRedundant={onUnmarkRedundant} onReset={onReset} filter={filter} />
             })}
           </div>
 
