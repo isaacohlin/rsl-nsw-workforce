@@ -4,7 +4,7 @@ import { useCloudState } from './useCloudState';
 import TeamColumn from './TeamColumn';
 import RoleTile from './RoleTile';
 
-const TYPE_CYCLE = ['existing', 'new', 'vacant', 'outsourced'];
+const TYPE_CYCLE = ['existing', 'new', 'vacant', 'outsourced', 'qld'];
 
 // ── USER IDENTITY PROMPT ──────────────────────────────────────
 function IdentityPrompt({ onConfirm }) {
@@ -87,7 +87,7 @@ function buildExportText(optIdx, state, liveMetrics) {
   const optId = opt.id;
   const st = state.teamState[optId] || {};
   let txt = `RSL NSW WORKFORCE STRUCTURAL OPTIONS\n${opt.label.toUpperCase()}\n${'═'.repeat(58)}\n`;
-  txt += `Risk: ${opt.risk}  |  Active Roles: ${liveMetrics?.active ?? '—'}  |  New: ${liveMetrics?.newRoles ?? '—'}  |  Vacant: ${liveMetrics?.vacant ?? '—'}  |  Redundant: ${liveMetrics?.redundant ?? '—'}\n\n`;
+  txt += `Risk: ${opt.risk}  |  Active Roles: ${liveMetrics?.active ?? '—'}  |  New: ${liveMetrics?.newRoles ?? '—'}  |  Vacant: ${liveMetrics?.vacant ?? '—'}  |  QLD Funded: ${liveMetrics?.qld ?? '—'}  |  Redundant: ${liveMetrics?.redundant ?? '—'}\n\n`;
   const allTeamIds = new Set();
   opt.teams.forEach(t => { allTeamIds.add(t.id); if (t.subGroups) t.subGroups.forEach(sg => allTeamIds.add(sg.id)); });
   allTeamIds.forEach(tid => {
@@ -99,7 +99,7 @@ function buildExportText(optIdx, state, liveMetrics) {
       const r = getRoleById(id, state.customRoles); if (!r) return;
       const e = state.roleEdits[id] || {};
       const name = e.name ?? r.name; const level = e.level ?? r.level; const type = e.type ?? r.type;
-      const flags = [type === 'new' ? 'NEW' : null, type === 'vacant' ? 'VACANT' : null, type === 'outsourced' ? 'OUT' : null,
+      const flags = [type === 'new' ? 'NEW' : null, type === 'vacant' ? 'VACANT' : null, type === 'outsourced' ? 'OUT' : null, type === 'qld' ? 'QLD FUNDED' : null,
         (e.name !== undefined && e.name !== r.name) || (e.level !== undefined && e.level !== r.level) || (e.type !== undefined && e.type !== r.type) ? 'EDITED' : null,
         (st['redundancy'] || []).includes(id) ? 'REDUNDANT' : null].filter(Boolean);
       txt += `  • ${name}  [${level}]${flags.length ? ' (' + flags.join(', ') + ')' : ''}\n`;
@@ -362,17 +362,19 @@ export default function App() {
     const allTeamIds = Object.keys(curTeamState).filter(k => k !== 'redundancy' && k !== 'unassigned');
     const activeIds = new Set();
     allTeamIds.forEach(tid => (curTeamState[tid] || []).forEach(id => activeIds.add(id)));
-    let newCount = 0, vacantCount = 0;
+    let newCount = 0, vacantCount = 0, qldCount = 0;
     activeIds.forEach(id => {
       const effectiveType = (state.roleEdits[id]?.type) ?? (getRole(id)?.type ?? 'existing');
       if (effectiveType === 'new') newCount++;
       if (effectiveType === 'vacant') vacantCount++;
+      if (effectiveType === 'qld') qldCount++;
     });
     return {
       active: activeIds.size,
       newRoles: newCount,
       vacant: vacantCount,
       redundant: redundancyIds.size,
+      qld: qldCount,
     };
   }, [curTeamState, state.roleEdits, opt]);
 
@@ -418,7 +420,7 @@ export default function App() {
         <div style={{ background: '#4c1d95', color: 'white', padding: '4px 18px', display: 'flex', alignItems: 'center', gap: 12, fontSize: 10 }}>
           <span style={{ background: 'rgba(255,255,255,.18)', borderRadius: 3, padding: '1px 7px', fontWeight: 600 }}>19 Vacancies</span>
           <span style={{ color: 'rgba(255,255,255,.55)' }}>7 covered by AH / secondment</span>
-          <span style={{ marginLeft: 'auto', opacity: .4, fontSize: 9 }}>Gold=new · Purple=vacant · Dashed=outsourced · Red=redundancy</span>
+          <span style={{ marginLeft: 'auto', opacity: .4, fontSize: 9 }}>Gold=new · Purple=vacant · Dashed=outsourced · Pink=QLD funded · Red=redundancy</span>
         </div>
         {/* Tabs */}
         <div style={{ background: '#01426a', display: 'flex', padding: '0 18px', overflowX: 'auto', borderBottom: '1px solid rgba(255,255,255,.08)' }}>
@@ -489,9 +491,9 @@ export default function App() {
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontFamily: 'Oswald', fontSize: 8.5, letterSpacing: 2, textTransform: 'uppercase', color: '#003863', marginBottom: 6, paddingBottom: 3, borderBottom: '2px solid #F6BE00' }}>Headcount</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                {[['Active Roles', liveMetrics.active], ['New', liveMetrics.newRoles], ['Vacant', liveMetrics.vacant], ['Redundant', liveMetrics.redundant]].map(([label, val], i) => (
-                  <div key={label} style={{ background: i === 3 ? '#fff5f5' : i === 2 ? '#f5f3ff' : i === 1 ? '#fffbeb' : '#f8fafc', border: `1px solid ${i === 3 ? '#fca5a5' : i === 2 ? '#ddd6fe' : i === 1 ? '#fde68a' : '#e5e7eb'}`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
-                    <div style={{ fontFamily: 'Oswald', fontSize: 18, fontWeight: 600, color: i === 3 ? '#991b1b' : i === 2 ? '#7c3aed' : i === 1 ? '#92400e' : '#003863', lineHeight: 1 }}>{val}</div>
+                {[['Active Roles', liveMetrics.active, 0], ['New', liveMetrics.newRoles, 1], ['Vacant', liveMetrics.vacant, 2], ['Redundant', liveMetrics.redundant, 3], ['QLD Funded', liveMetrics.qld, 4]].map(([label, val, i]) => (
+                  <div key={label} style={{ background: i === 3 ? '#fff5f5' : i === 2 ? '#f5f3ff' : i === 1 ? '#fffbeb' : i === 4 ? '#fdf2f8' : '#f8fafc', border: `1px solid ${i === 3 ? '#fca5a5' : i === 2 ? '#ddd6fe' : i === 1 ? '#fde68a' : i === 4 ? '#f9a8d4' : '#e5e7eb'}`, borderRadius: 5, padding: '6px 8px', textAlign: 'center', gridColumn: i === 4 ? 'span 2' : undefined }}>
+                    <div style={{ fontFamily: 'Oswald', fontSize: 18, fontWeight: 600, color: i === 3 ? '#991b1b' : i === 2 ? '#7c3aed' : i === 1 ? '#92400e' : i === 4 ? '#db2777' : '#003863', lineHeight: 1 }}>{val}</div>
                     <div style={{ fontSize: 8, color: '#6b7280', marginTop: 1, textTransform: 'uppercase', letterSpacing: .5 }}>{label}</div>
                   </div>
                 ))}
@@ -502,7 +504,7 @@ export default function App() {
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontFamily: 'Oswald', fontSize: 8.5, letterSpacing: 2, textTransform: 'uppercase', color: '#003863', marginBottom: 6, paddingBottom: 3, borderBottom: '2px solid #F6BE00' }}>Filter</div>
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                {[['all', '#9ca3af', 'All'], ['vac', '#7c3aed', 'Vacant'], ['new', '#f0b323', 'New'], ['out', '#15803d', 'Outsourced']].map(([f, color, label]) => (
+                {[['all', '#9ca3af', 'All'], ['vac', '#7c3aed', 'Vacant'], ['new', '#f0b323', 'New'], ['out', '#15803d', 'Outsourced'], ['qld', '#db2777', 'QLD Funded']].map(([f, color, label]) => (
                   <button key={f} onClick={() => update(s => ({ ...s, activeFilter: f }))}
                     style={{ fontSize: 9, padding: '3px 7px', borderRadius: 4, border: '1px solid', cursor: 'pointer', fontFamily: 'Poppins', display: 'flex', alignItems: 'center', gap: 3, transition: 'all .13s', borderColor: filter === f ? color : '#e5e7eb', background: filter === f ? color : 'white', color: filter === f ? (f === 'new' ? '#003863' : 'white') : '#6b7280' }}>
                     <div style={{ width: 6, height: 6, borderRadius: 2, background: filter === f ? (f === 'new' ? '#003863' : 'white') : color }} />{label}
@@ -528,7 +530,7 @@ export default function App() {
                 ['#f5f3ff', 'Vacant', '#c4b5fd'],
                 ['#f0fdf4', 'Outsourced', '#86efac'],
                 ['#fff5f5', 'Flagged redundant', '#fca5a5'],
-                ['#1a3352', 'PMO / Office of CoS'],
+                ['#fdf2f8', 'RSL QLD Funded', '#f9a8d4'],
               ].map(([bg, label, border]) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 3, fontSize: 9, color: '#6b7280' }}>
                   <div style={{ width: 9, height: 9, borderRadius: 2, background: bg, border: border ? `1px solid ${border}` : undefined, flexShrink: 0 }} />
