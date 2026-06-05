@@ -80,14 +80,14 @@ function allOptions(customOptions) {
   return [...BASE_OPTIONS, ...customOptions];
 }
 
-function buildExportText(optIdx, state) {
+function buildExportText(optIdx, state, liveMetrics) {
   const opts = allOptions(state.customOptions);
   const opt = opts[optIdx];
   if (!opt) return '';
   const optId = opt.id;
   const st = state.teamState[optId] || {};
   let txt = `RSL NSW WORKFORCE STRUCTURAL OPTIONS\n${opt.label.toUpperCase()}\n${'═'.repeat(58)}\n`;
-  txt += `Risk: ${opt.risk}  |  Est. Roles: ${opt.metrics.active}  |  New: ${opt.metrics.newRoles}  |  Cost: ${opt.metrics.cost}\n\n`;
+  txt += `Risk: ${opt.risk}  |  Active Roles: ${liveMetrics?.active ?? '—'}  |  New: ${liveMetrics?.newRoles ?? '—'}  |  Vacant: ${liveMetrics?.vacant ?? '—'}  |  Redundant: ${liveMetrics?.redundant ?? '—'}\n\n`;
   const allTeamIds = new Set();
   opt.teams.forEach(t => { allTeamIds.add(t.id); if (t.subGroups) t.subGroups.forEach(sg => allTeamIds.add(sg.id)); });
   allTeamIds.forEach(tid => {
@@ -348,7 +348,7 @@ export default function App() {
   }
 
   function openExport() {
-    setExportText(buildExportText(cur, state));
+    setExportText(buildExportText(cur, state, liveMetrics));
     setShowExportModal(true);
   }
 
@@ -364,6 +364,28 @@ export default function App() {
 
   const optId = opt?.id;
   const curTeamState = state.teamState[optId] || {};
+
+  // ── LIVE METRICS ─────────────────────────────────────────────
+  const liveMetrics = React.useMemo(() => {
+    if (!opt) return { active: 0, newRoles: 0, vacant: 0, redundant: 0 };
+    const redundancyIds = new Set(curTeamState['redundancy'] || []);
+    const unassignedIds = new Set(curTeamState['unassigned'] || []);
+    const allTeamIds = Object.keys(curTeamState).filter(k => k !== 'redundancy' && k !== 'unassigned');
+    const activeIds = new Set();
+    allTeamIds.forEach(tid => (curTeamState[tid] || []).forEach(id => activeIds.add(id)));
+    let newCount = 0, vacantCount = 0;
+    activeIds.forEach(id => {
+      const effectiveType = (state.roleEdits[id]?.type) ?? (getRole(id)?.type ?? 'existing');
+      if (effectiveType === 'new') newCount++;
+      if (effectiveType === 'vacant') vacantCount++;
+    });
+    return {
+      active: activeIds.size,
+      newRoles: newCount,
+      vacant: vacantCount,
+      redundant: redundancyIds.size,
+    };
+  }, [curTeamState, state.roleEdits, opt]);
 
   const riskBadge = (risk) => {
     const s = { HIGH: { bg: '#fef2f2', c: '#dc2626' }, 'MOD-HIGH': { bg: '#fffbeb', c: '#d97706' }, MODERATE: { bg: '#fffbeb', c: '#d97706' }, LOWER: { bg: '#f0fdf4', c: '#15803d' } }[risk] || {};
@@ -468,9 +490,9 @@ export default function App() {
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontFamily: 'Oswald', fontSize: 8.5, letterSpacing: 2, textTransform: 'uppercase', color: '#003863', marginBottom: 6, paddingBottom: 3, borderBottom: '2px solid #F6BE00' }}>Headcount</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                {[['Est. Roles', opt?.metrics.active], ['New', opt?.metrics.newRoles], ['Vacancies', '19'], ['Cost', opt?.metrics.cost]].map(([label, val], i) => (
-                  <div key={label} style={{ background: i === 2 ? '#f5f3ff' : '#f8fafc', border: `1px solid ${i === 2 ? '#ddd6fe' : '#e5e7eb'}`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
-                    <div style={{ fontFamily: 'Oswald', fontSize: 18, fontWeight: 600, color: i === 2 ? '#7c3aed' : '#003863', lineHeight: 1 }}>{val}</div>
+                {[['Active Roles', liveMetrics.active], ['New', liveMetrics.newRoles], ['Vacant', liveMetrics.vacant], ['Redundant', liveMetrics.redundant]].map(([label, val], i) => (
+                  <div key={label} style={{ background: i === 3 ? '#fff5f5' : i === 2 ? '#f5f3ff' : i === 1 ? '#fffbeb' : '#f8fafc', border: `1px solid ${i === 3 ? '#fca5a5' : i === 2 ? '#ddd6fe' : i === 1 ? '#fde68a' : '#e5e7eb'}`, borderRadius: 5, padding: '6px 8px', textAlign: 'center' }}>
+                    <div style={{ fontFamily: 'Oswald', fontSize: 18, fontWeight: 600, color: i === 3 ? '#991b1b' : i === 2 ? '#7c3aed' : i === 1 ? '#92400e' : '#003863', lineHeight: 1 }}>{val}</div>
                     <div style={{ fontSize: 8, color: '#6b7280', marginTop: 1, textTransform: 'uppercase', letterSpacing: .5 }}>{label}</div>
                   </div>
                 ))}
@@ -494,7 +516,7 @@ export default function App() {
             <div style={{ marginBottom: 10 }}>
               <div style={{ fontFamily: 'Oswald', fontSize: 8.5, letterSpacing: 2, textTransform: 'uppercase', color: '#003863', marginBottom: 6, paddingBottom: 3, borderBottom: '2px solid #F6BE00' }}>Export</div>
               <button onClick={openExport} style={{ width: '100%', padding: 6, background: '#F6BE00', color: '#003863', border: 'none', borderRadius: 4, fontFamily: 'Oswald', fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontWeight: 600, marginBottom: 4 }}>⬇ Export Current Option</button>
-              <button onClick={() => { navigator.clipboard.writeText(buildExportText(cur, state)); showToast('Copied ✓'); }} style={{ width: '100%', padding: 5, background: 'white', color: '#003863', border: '1px solid #003863', borderRadius: 4, fontFamily: 'Oswald', fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontWeight: 600 }}>⎘ Copy to Clipboard</button>
+              <button onClick={() => { navigator.clipboard.writeText(buildExportText(cur, state, liveMetrics)); showToast('Copied ✓'); }} style={{ width: '100%', padding: 5, background: 'white', color: '#003863', border: '1px solid #003863', borderRadius: 4, fontFamily: 'Oswald', fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', cursor: 'pointer', fontWeight: 600 }}>⎘ Copy to Clipboard</button>
             </div>
 
             {/* Legend */}
