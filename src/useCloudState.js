@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 
 const STORAGE_KEY = 'rsl-nsw-workforce-v1';
 
-// Debounce helper
 function debounce(fn, ms) {
   let timer;
   return (...args) => {
@@ -13,34 +12,28 @@ function debounce(fn, ms) {
 
 export function useCloudState(initialState) {
   const [state, setState] = useState(initialState);
-  const [syncStatus, setSyncStatus] = useState('idle'); // idle | saving | saved | error
+  const [syncStatus, setSyncStatus] = useState('idle');
   const [loaded, setLoaded] = useState(false);
 
-  // Load on mount
+  // Load from localStorage on mount
   useEffect(() => {
-    async function load() {
-      try {
-        const result = await window.storage.get(STORAGE_KEY);
-        if (result && result.value) {
-          const parsed = JSON.parse(result.value);
-          setState(parsed);
-        }
-      } catch (e) {
-        // No saved state yet — use initial
-        console.log('No saved state, using defaults');
-      } finally {
-        setLoaded(true);
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setState(JSON.parse(saved));
       }
+    } catch (e) {
+      console.log('No saved state, using defaults');
+    } finally {
+      setLoaded(true);
     }
-    load();
   }, []);
 
-  // Save with debounce
+  // Save to localStorage with debounce
   const save = useCallback(
-    debounce(async (val) => {
-      setSyncStatus('saving');
+    debounce((val) => {
       try {
-        await window.storage.set(STORAGE_KEY, JSON.stringify(val));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(val));
         setSyncStatus('saved');
         setTimeout(() => setSyncStatus('idle'), 2000);
       } catch (e) {
@@ -54,6 +47,7 @@ export function useCloudState(initialState) {
   const update = useCallback((updater) => {
     setState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater;
+      setSyncStatus('saving');
       save(next);
       return next;
     });
