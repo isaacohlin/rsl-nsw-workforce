@@ -352,24 +352,13 @@ export default function App() {
     setShowExportModal(true);
   }
 
-  if (!userName) {
-    return <IdentityPrompt onConfirm={name => { localStorage.setItem('rsl-workforce-user', name); setUserName(name); }} />;
-  }
-
-  if (!loaded) return (
-    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#003863', color: 'white', fontFamily: 'Poppins', fontSize: 14 }}>
-      Loading RSL NSW Workforce Options…
-    </div>
-  );
-
   const optId = opt?.id;
   const curTeamState = state.teamState[optId] || {};
 
-  // ── LIVE METRICS ─────────────────────────────────────────────
+  // ── LIVE METRICS — must be above early returns (hooks rules) ──
   const liveMetrics = React.useMemo(() => {
     if (!opt) return { active: 0, newRoles: 0, vacant: 0, redundant: 0 };
     const redundancyIds = new Set(curTeamState['redundancy'] || []);
-    const unassignedIds = new Set(curTeamState['unassigned'] || []);
     const allTeamIds = Object.keys(curTeamState).filter(k => k !== 'redundancy' && k !== 'unassigned');
     const activeIds = new Set();
     allTeamIds.forEach(tid => (curTeamState[tid] || []).forEach(id => activeIds.add(id)));
@@ -386,6 +375,16 @@ export default function App() {
       redundant: redundancyIds.size,
     };
   }, [curTeamState, state.roleEdits, opt]);
+
+  if (!userName) {
+    return <IdentityPrompt onConfirm={name => { localStorage.setItem('rsl-workforce-user', name); setUserName(name); }} />;
+  }
+
+  if (!loaded) return (
+    <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#003863', color: 'white', fontFamily: 'Poppins', fontSize: 14 }}>
+      Loading RSL NSW Workforce Options…
+    </div>
+  );
 
   const riskBadge = (risk) => {
     const s = { HIGH: { bg: '#fef2f2', c: '#dc2626' }, 'MOD-HIGH': { bg: '#fffbeb', c: '#d97706' }, MODERATE: { bg: '#fffbeb', c: '#d97706' }, LOWER: { bg: '#f0fdf4', c: '#15803d' } }[risk] || {};
