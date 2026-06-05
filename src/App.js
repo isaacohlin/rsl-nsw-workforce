@@ -6,6 +6,48 @@ import RoleTile from './RoleTile';
 
 const TYPE_CYCLE = ['existing', 'new', 'vacant', 'outsourced'];
 
+// ── USER IDENTITY PROMPT ──────────────────────────────────────
+function IdentityPrompt({ onConfirm }) {
+  const [name, setName] = useState('');
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#003863', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', borderRadius: 12, width: 380, overflow: 'hidden', boxShadow: '0 25px 60px rgba(0,0,0,.4)' }}>
+        <div style={{ background: '#003863', padding: '20px 24px', borderBottom: '4px solid #F6BE00' }}>
+          <div style={{ fontFamily: 'Oswald', fontSize: 22, fontWeight: 700, color: 'white', letterSpacing: 1 }}>
+            RSL <span style={{ color: '#F6BE00' }}>NSW</span>
+          </div>
+          <div style={{ fontFamily: 'Oswald', fontSize: 12, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,.7)', marginTop: 4 }}>
+            Workforce Structural Options
+          </div>
+        </div>
+        <div style={{ padding: 24 }}>
+          <div style={{ fontFamily: 'Oswald', fontSize: 14, letterSpacing: 1, textTransform: 'uppercase', color: '#003863', marginBottom: 6 }}>Who are you?</div>
+          <p style={{ fontSize: 11, color: '#6b7280', marginBottom: 16, lineHeight: 1.5 }}>
+            Your name will be recorded alongside any changes you make, so the team can see who moved what.
+          </p>
+          <input
+            autoFocus
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && name.trim() && onConfirm(name.trim())}
+            placeholder="e.g. Isaac, Kim, Shay..."
+            style={{ width: '100%', fontSize: 13, fontFamily: 'Poppins', border: '2px solid #e5e7eb', borderRadius: 6, padding: '9px 12px', color: '#1f2937', outline: 'none', marginBottom: 12 }}
+            onFocus={e => e.target.style.borderColor = '#003863'}
+            onBlur={e => e.target.style.borderColor = '#e5e7eb'}
+          />
+          <button
+            onClick={() => name.trim() && onConfirm(name.trim())}
+            disabled={!name.trim()}
+            style={{ width: '100%', padding: '10px 0', background: name.trim() ? '#F6BE00' : '#e5e7eb', color: name.trim() ? '#003863' : '#9ca3af', border: 'none', borderRadius: 6, fontFamily: 'Oswald', fontSize: 13, letterSpacing: 1, textTransform: 'uppercase', cursor: name.trim() ? 'pointer' : 'default', fontWeight: 700, transition: 'all .15s' }}
+          >
+            Enter Tool
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Build initial team state from option definitions
 function buildInitialTeamState() {
   const ts = {};
@@ -110,7 +152,8 @@ function PoolZone({ pool, poolRoles, state, isRedundant, onDrop, onDragStart, on
 }
 
 export default function App() {
-  const { state, update, syncStatus, loaded } = useCloudState(INITIAL_STATE);
+  const [userName, setUserName] = useState(() => localStorage.getItem('rsl-workforce-user') || '');
+  const { state, update, syncStatus, loaded, reload } = useCloudState(INITIAL_STATE, userName);
   const [showNewOptModal, setShowNewOptModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [newOptName, setNewOptName] = useState('');
@@ -309,6 +352,10 @@ export default function App() {
     setShowExportModal(true);
   }
 
+  if (!userName) {
+    return <IdentityPrompt onConfirm={name => { localStorage.setItem('rsl-workforce-user', name); setUserName(name); }} />;
+  }
+
   if (!loaded) return (
     <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#003863', color: 'white', fontFamily: 'Poppins', fontSize: 14 }}>
       Loading RSL NSW Workforce Options…
@@ -338,7 +385,12 @@ export default function App() {
             {syncStatus === 'saving' && <span style={{ fontSize: 9, color: 'rgba(255,255,255,.5)' }}>⏳ Saving…</span>}
             {syncStatus === 'saved' && <span style={{ fontSize: 9, color: '#F6BE00' }}>✓ Saved</span>}
             {syncStatus === 'error' && <span style={{ fontSize: 9, color: '#fca5a5' }}>⚠ Save failed</span>}
-            <span style={{ fontSize: 9, color: 'rgba(255,255,255,.35)' }}>Confidential · May 2026 · 4 scenarios</span>
+            <button onClick={reload} title="Reload latest from database" style={{ fontSize: 9, background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.2)', color: 'rgba(255,255,255,.7)', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontFamily: 'Poppins' }}>↻ Refresh</button>
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,.45)', borderLeft: '1px solid rgba(255,255,255,.15)', paddingLeft: 10 }}>
+              Signed in as <strong style={{ color: 'rgba(255,255,255,.75)' }}>{userName}</strong>
+              <button onClick={() => { localStorage.removeItem('rsl-workforce-user'); setUserName(''); }} style={{ marginLeft: 6, fontSize: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,.35)', cursor: 'pointer', fontFamily: 'Poppins' }}>change</button>
+            </span>
+            <span style={{ fontSize: 9, color: 'rgba(255,255,255,.3)' }}>Confidential · May 2026</span>
           </div>
         </div>
         {/* Vacancy banner */}
@@ -483,7 +535,7 @@ export default function App() {
               </div>
             )}
             <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 5, padding: '5px 10px', fontSize: 9, color: '#92400e' }}>
-              ↕ <strong>Drag</strong> tiles between teams · ✎ <strong>Click name</strong> to rename · 🔵 <strong>Click type badge</strong> to cycle · <strong>+</strong> in team header to add a role · All changes <strong>auto-save</strong> and sync across sessions
+              ↕ <strong>Drag</strong> tiles between teams · ✎ <strong>Click name</strong> to rename · 🔵 <strong>Click type badge</strong> to cycle · <strong>+</strong> in team header to add a role · Changes <strong>auto-save</strong> · Click <strong>↻ Refresh</strong> to load teammates' latest changes
             </div>
           </div>
 
