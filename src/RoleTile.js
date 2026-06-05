@@ -1,12 +1,13 @@
 import React, { useState, useRef } from 'react';
 
-const TYPE_CYCLE = ['existing', 'new', 'vacant', 'outsourced'];
-const TYPE_LABELS = { existing: 'ROLE', new: 'NEW', vacant: 'VAC', outsourced: 'OUT' };
+const TYPE_CYCLE = ['existing', 'new', 'vacant', 'outsourced', 'qld'];
+const TYPE_LABELS = { existing: 'ROLE', new: 'NEW', vacant: 'VAC', outsourced: 'OUT', qld: 'QLD' };
 const TYPE_COLORS = {
   existing: { bg: '#f3f4f6', color: '#6b7280' },
   new: { bg: '#F6BE00', color: '#003863' },
   vacant: { bg: '#ede9fe', color: '#7c3aed' },
   outsourced: { bg: '#dcfce7', color: '#166534' },
+  qld: { bg: '#fce7f3', color: '#9d174d' },
 };
 
 export default function RoleTile({ role, teamId, edits, isRedundant, onEdit, onCycleType, onToggleNotes, onSaveNotes, onMarkRedundant, onUnmarkRedundant, onReset, onDragStart, onDragEnd, filter }) {
@@ -18,6 +19,7 @@ export default function RoleTile({ role, teamId, edits, isRedundant, onEdit, onC
   const isNew = effectiveType === 'new';
   const isVac = effectiveType === 'vacant';
   const isOut = effectiveType === 'outsourced';
+  const isQLD = effectiveType === 'qld';
   const name = edits?.name ?? role.name;
   const level = edits?.level ?? role.level;
   const notes = edits?.notes ?? '';
@@ -33,6 +35,7 @@ export default function RoleTile({ role, teamId, edits, isRedundant, onEdit, onC
   if (filter === 'vac' && !isVac) return null;
   if (filter === 'new' && !isNew) return null;
   if (filter === 'out' && !isOut) return null;
+  if (filter === 'qld' && !isQLD) return null;
 
   const tileStyle = {
     display: 'flex', flexDirection: 'column',
@@ -48,10 +51,11 @@ export default function RoleTile({ role, teamId, edits, isRedundant, onEdit, onC
     ...(isRedundant ? { borderColor: '#fca5a5', background: '#fff5f5' } :
        isNew ? { borderColor: '#f0b323', background: '#fffbeb' } :
        isVac ? { borderColor: '#c4b5fd', background: '#f5f3ff' } :
-       isOut ? { borderColor: '#86efac', background: '#f0fdf4', borderStyle: 'dashed' } : {}),
+       isOut ? { borderColor: '#86efac', background: '#f0fdf4', borderStyle: 'dashed' } :
+       isQLD ? { borderColor: '#f9a8d4', background: '#fdf2f8', borderStyle: 'dashed' } : {}),
   };
 
-  const dotColor = isRedundant ? '#dc2626' : isNew ? '#f0b323' : isVac ? '#7c3aed' : isOut ? '#15803d' : '#9ca3af';
+  const dotColor = isRedundant ? '#dc2626' : isNew ? '#f0b323' : isVac ? '#7c3aed' : isOut ? '#15803d' : isQLD ? '#db2777' : '#9ca3af';
   const typeInfo = TYPE_COLORS[effectiveType] || TYPE_COLORS.existing;
 
   function handleDragStart(e) {
