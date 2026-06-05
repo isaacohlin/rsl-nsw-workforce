@@ -523,6 +523,7 @@ export default function App() {
                   onEdit={onEdit} onCycleType={onCycleType} onToggleNotes={onToggleNotes}
                   onSaveNotes={onSaveNotes} onMarkRedundant={onMarkRedundant}
                   onUnmarkRedundant={onUnmarkRedundant} onReset={onReset} filter={filter} />
+              );
             })}
           </div>
 
